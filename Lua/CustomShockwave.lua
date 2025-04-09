@@ -101,6 +101,9 @@ do
                                 PauseTimer(timer)
                             end
                         end
+
+                        DestroyGroup(g) 
+                        g = nil ---@type group
                         
                         i = i + 1
                     end

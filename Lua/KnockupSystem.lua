@@ -54,7 +54,6 @@ if Debug then Debug.beginFile 'KnockupSystem' end --[[
 *   Simply copy and paste this code to your map. Easy Peasy Lemon Squeezy.
 *
 **************************************************************************************]]
-
 do
     --======================
     -- System Configuration
@@ -81,7 +80,7 @@ do
     ---Effect on the location of the target when they land
     local LANDING_EFFECT = ""
 
-    ----1 = no override (wait until land), 0 = always override, 1 = only stronger duration override
+    --- -1 = no override (wait until land), 0 = always override, 1 = only stronger duration override
     local OVERRIDE_MODE = 1
 
     ---Timer interval used to update target unit fly height
@@ -109,6 +108,12 @@ do
 
     ---@type table<unit, KnockupInstance>
     KnockupInstance._instances = {}
+
+    ---@type KnockupInstance[]
+    KnockupInstance._list = {}
+
+    ---@type table<unit, integer>
+    KnockupInstance._index = {}
 
     ---Creates a new instance or overrides the current one
     ---@param target unit
@@ -146,10 +151,6 @@ do
             return existing
         end
 
-        if next(KnockupInstance._instances) == nil then
-            TimerStart(TIMER, TIMEOUT, true, KnockupInstance.loop)
-        end
-
         ---@type KnockupInstance
         local new = setmetatable({}, KnockupInstance)
         new.target = target
@@ -177,16 +178,25 @@ do
             DestroyEffect(AddSpecialEffect(LAUNCH_EFFECT, x, y))
         end
 
+        table.insert(KnockupInstance._list, new)
+        KnockupInstance._index[target] = #KnockupInstance._list
         KnockupInstance._instances[target] = new
+
+        if #KnockupInstance._list == 1 then
+            TimerStart(TIMER, TIMEOUT, true, KnockupInstance.loop)
+        end
 
         return new
     end
 
+    ---Loop with checks, immediately calls remove() when target dies or granted immunity
     function KnockupInstance.loop()
-        local isActive = false
+        local i = 1
 
-        for target, this in pairs(KnockupInstance._instances) do
-            if not UnitAlive(target) or KnockupInstance.IsImmune(this.target) then
+        while i <= #KnockupInstance._list do
+            local this = KnockupInstance._list[i]
+
+            if not UnitAlive(this.target) or KnockupInstance.IsImmune(this.target) then
                 KnockupInstance.remove(this.target)
             else
                 this.counter = this.counter + TIMEOUT
@@ -207,45 +217,79 @@ do
                         DestroyEffect(AddSpecialEffect(LANDING_EFFECT, x, y))
                     end
 
-                    print(GetUnitName(this.target) .. "is in Instance Index: " .. this.__index)
-
                     KnockupInstance._instances[this.target] = nil
+            
+                    local index = KnockupInstance._index[this.target]
+                    KnockupInstance._index[this.target] = nil
+
+                    if index then
+                        local lastIndex = #KnockupInstance._list
+                        if index ~= lastIndex then
+                            local lastInst = KnockupInstance._list[lastIndex]
+                            KnockupInstance._list[index] = lastInst
+                            KnockupInstance._index[lastInst.target] = index
+                        end
+                        KnockupInstance._list[lastIndex] = nil
+                    end
+
+                    -- Stop loop if no active knockups
+                    if #KnockupInstance._list == 0 then
+                        PauseTimer(TIMER)
+                    end
                 else
                     local a = (1.0 - t)
                     local b = t
                     this.deltaHeight = a * a * this.initialHeight + 2.0 * a * b * this.height + b * b * this.baseHeight
                     SetUnitFlyHeight(this.target, this.deltaHeight, 0)
 
-                    isActive = true
+                    i = i + 1
                 end
             end
         end
-
-        -- Stop loop if no active knockups
-        if not isActive then
-            PauseTimer(TIMER)
-        end
     end
 
+    ---Remove the instance
     function KnockupInstance.remove(target)
-        local existing = KnockupInstance._instances[target]
-        if existing then
-            SetUnitFlyHeight(existing.target, existing.baseHeight, 0)
-            existing.isAirborne = false
+        local instance = KnockupInstance._instances[target]
+        if instance then
+            SetUnitFlyHeight(target, instance.baseHeight, 0)
+            instance.isAirborne = false
 
-            BlzPauseUnitEx(existing.target, false)
+            BlzPauseUnitEx(target, false)
 
-            DestroyEffect(existing.sfx)
-            existing.sfx = nil
+            DestroyEffect(instance.sfx)
+            instance.sfx = nil
 
             if LANDING_EFFECT ~= "" then
-                local x = GetUnitX(existing.target)
-                local y = GetUnitY(existing.target)
+                local x = GetUnitX(target)
+                local y = GetUnitY(target)
                 DestroyEffect(AddSpecialEffect(LANDING_EFFECT, x, y))
             end
 
-            KnockupInstance._instances[existing.target] = nil
+            KnockupInstance._instances[target] = nil
+            
+            local index = KnockupInstance._index[target]
+            KnockupInstance._index[target] = nil
+
+            if index then
+                local lastIndex = #KnockupInstance._list
+                if index ~= lastIndex then
+                    local lastInst = KnockupInstance._list[lastIndex]
+                    KnockupInstance._list[index] = lastInst
+                    KnockupInstance._index[lastInst.target] = index
+                end
+                KnockupInstance._list[lastIndex] = nil
+            end
+
+            -- Stop loop if no active knockups
+            if #KnockupInstance._list == 0 then
+                PauseTimer(TIMER)
+            end
+
+            return true
         end
+
+        return false
     end
 
     ---@param init number
@@ -255,6 +299,7 @@ do
         return (init + peak) * 2.0 - 0.5 * (init + base)
     end
 
+    ---@type table<unit, boolean>
     KnockupInstance._immune = {}
 
     function KnockupInstance.SetImmune(unit, flag)
@@ -286,6 +331,18 @@ do
     ---@param duration number
     ---@return boolean -- true if applied successfully
     ApplyKnockup = function(target, height, duration)
+        if height <= 0. then
+            height = DEFAULT_KNOCKUP_HEIGHT
+        end
+
+        if height > MAX_KNOCKUP_HEIGHT then
+            height = MAX_KNOCKUP_HEIGHT
+        end
+
+        if duration <= 0. then
+            duration = DEFAULT_KNOCKUP_DURATION
+        end
+
         return KnockupInstance.create(target, height, duration) ~= nil
     end
 

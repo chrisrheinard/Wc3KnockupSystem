@@ -13,8 +13,13 @@ You can read the code here:
 <details>
 <summary>Changelogs</summary>
 The list of changes throughout each version:
-- v1.0
-  * First Public Release
++ v1.1
+  - Added optional library (PauseUnitEx by MyPad) to vJASS version
+  - Added optional library (PauseUnits by Wrda) to Lua version
+  - Added GUI Custom Event Support (KnockupTakeoffEvent, KnockupLandingEvent, KnockupCancelledEvent)
+  - Added GUI Event Response (KnockupEventTarget)
++ v1.0
+  - First Public Release
 </details>
 
 ## Map License

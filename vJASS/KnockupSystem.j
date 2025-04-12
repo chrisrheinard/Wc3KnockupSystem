@@ -1,4 +1,4 @@
-library KnockupSystem /* version 1.0
+library KnockupSystem /* version 1.1
 *************************************************************************************
 *
 *   ------------
@@ -44,21 +44,35 @@ library KnockupSystem /* version 1.0
 *     - It will always return 0.0 if the unit is not airborne
 *
 *   --------------
-*   Requirements:
+*   */ requires /*
 *   --------------
 *   Knockup System has no requirement whatsoever.
+*
+*   --------------------------
+*   */ optional PauseUnitEx /*
+*   --------------------------
+*   This snippet helps preventing the target from being unpaused early.
+*   Very useful if you use BlzPauseUnitEx for many things in your map
+*   and not just for this system.
+*
+*   I highly recommend to use KnockupSystem along PauseUnitEx for the best outcomes.
+*
+*   Credits to MyPad
+*   Link: https://www.hiveworkshop.com/threads/pauseunitex.326422/
 *
 *   -------------------
 *   Import instruction:
 *   -------------------
-*   Simply copy and paste this code to your map. Easy Peasy Lemon Squeezy.
+*   Simply copy and paste the Knockup System folder into your map. Easy Peasy Lemon Squeezy.
+*   If you want to use the optional library, then simply import it as well.
+*   But if you don't, you can simply delete it.
 *
 *   ---------------------
 *   Global configuration:
 *   ---------------------
 */
-    globals     
-        /*
+    globals      
+        /* 
             Default duration value for knockup, used when the parameter value <= 0
         */
         private constant real DEFAULT_KNOCKUP_DURATION = 1.0
@@ -68,12 +82,12 @@ library KnockupSystem /* version 1.0
         */
         private constant real DEFAULT_KNOCKUP_HEIGHT = 150.0
 
-        /*
+        /* 
             Max height value for knockup
         */
         private constant real MAX_KNOCKUP_HEIGHT = 500.0
 
-        /*
+        /* 
             Effect attached on the target during "airborne" state
         */
         private constant string ATTACHMENT_EFFECT = "Abilities\\Spells\\Orc\\StasisTrap\\StasisTotemTarget.mdl"
@@ -83,22 +97,22 @@ library KnockupSystem /* version 1.0
         */
         private constant string ATTACHMENT_POINT = "overhead"
 
-        /*
+        /* 
             Effect on the location of the target when they get launched
         */
         private constant string LAUNCH_EFFECT = ""
     
-        /*
+        /* 
             Effect on the location of the target when they land
         */
         private constant string LANDING_EFFECT = ""
 
-        /*
+        /* 
             -1 = no override (wait until land), 0 = always override, 1 = only stronger duration override
         */
         private constant integer OVERRIDE_MODE = 1
 
-        /*
+        /* 
             Timer interval used to update target unit fly height
         */
         private constant real TIMEOUT = .03125
@@ -135,12 +149,12 @@ library KnockupSystem /* version 1.0
     endfunction
 
     function RemoveKnockup takes unit u returns boolean
-        return KnockupInstance.Remove(u)
+        return KnockupInstance.Remove(u) 
     endfunction
 
     function IsUnitKnockup takes unit u returns boolean
         return KnockupInstance.IsKnockup(u)
-    endfunction
+    endfunction 
 
     function SetKnockupImmune takes unit u, boolean flag returns boolean
         return KnockupInstance.SetImmune(u, flag)
@@ -157,7 +171,7 @@ library KnockupSystem /* version 1.0
     private module LinkedList
         thistype next
         thistype prev
-    
+        
         static method insert takes thistype this returns nothing
             set this.next = 0
             set this.prev = thistype(0).prev
@@ -172,7 +186,7 @@ library KnockupSystem /* version 1.0
 
     endmodule
 
-    struct KnockupInstance  
+    struct KnockupInstance   
         implement LinkedList
 
         boolean isAirborne
@@ -193,7 +207,7 @@ library KnockupSystem /* version 1.0
                 return KnockupInstance(index).isAirborne
             endif
 
-            return false       
+            return false        
         endmethod
 
         static method GetRemaining takes unit u returns real
@@ -238,7 +252,19 @@ library KnockupSystem /* version 1.0
                     call SetUnitFlyHeight(this.target, this.baseHeight, 0)
                     call RemoveSavedInteger(TABLE, 0, unitId)
 
-                    call BlzPauseUnitEx(this.target, false)
+                    static if LIBRARY_PauseUnitEx then
+                        call PauseUnitEx(this.target, false)
+                    else
+                        call BlzPauseUnitEx(this.target, false)
+                    endif
+
+                    if UnitAlive(this.target) then
+                        // Allows user to catch the event
+                        set udg_KnockupEventTarget = this.target
+                        set udg_KnockupCancelledEvent = 1.00
+                        set udg_KnockupCancelledEvent = 0.00
+                        set udg_KnockupEventTarget = null
+                    endif
 
                     call DestroyEffect(this.sfx)
                     set this.sfx = null
@@ -283,8 +309,18 @@ library KnockupSystem /* version 1.0
                         set x = GetUnitX(this.target)
                         set y = GetUnitY(this.target)
                     
-                        call BlzPauseUnitEx(this.target, false)
+                        static if LIBRARY_PauseUnitEx then
+                            call PauseUnitEx(this.target, false)
+                        else
+                            call BlzPauseUnitEx(this.target, false)
+                        endif
 
+                        // Allows user to catch the event
+                        set udg_KnockupEventTarget = this.target
+                        set udg_KnockupLandingEvent = 1.00
+                        set udg_KnockupLandingEvent = 0.00
+                        set udg_KnockupEventTarget = null
+    
                         call DestroyEffect(this.sfx)
                         set this.sfx = null
 
@@ -321,16 +357,16 @@ library KnockupSystem /* version 1.0
             local thistype this
             local real x
             local real y
-            local boolean shouldOverride          
+            local boolean shouldOverride           
 
             if target == null or IsImmune(target) then
                 return 0
             endif
 
             if not (existing == 0) then
-                if OVERRIDE_MODE == 0 then
+                if OVERRIDE_MODE == 0 then 
                     debug call BJDebugMsg("DEBUG | Override always")
-                    set shouldOverride = true              
+                    set shouldOverride = true               
                 elseif OVERRIDE_MODE == 1 and duration > existing.duration - existing.counter then
                     debug call BJDebugMsg("DEBUG | Override only if stronger. Remaining duration: " + R2S(existing.duration - existing.counter) + " vs new: " + R2S(duration))
                     set shouldOverride = true
@@ -343,7 +379,7 @@ library KnockupSystem /* version 1.0
                     set existing.duration = duration
                     set existing.counter = 0.0
                     set existing.initialHeight = GetUnitFlyHeight(existing.target)
-                    set existing.height = CalculateApex(existing.initialHeight, height, existing.baseHeight) 
+                    set existing.height = CalculateApex(existing.initialHeight, height, existing.baseHeight)  
                     if existing.height > MAX_KNOCKUP_HEIGHT then
                         set existing.height = MAX_KNOCKUP_HEIGHT
                     endif
@@ -375,10 +411,20 @@ library KnockupSystem /* version 1.0
             set x = GetUnitX(this.target)
             set y = GetUnitY(this.target)
 
-            call BlzPauseUnitEx(this.target, true)
+            static if LIBRARY_PauseUnitEx then
+                call PauseUnitEx(this.target, true)
+            else
+                call BlzPauseUnitEx(this.target, true)
+            endif
+
+            // Allows user to catch the event
+            set udg_KnockupEventTarget = this.target
+            set udg_KnockupTakeoffEvent = 1.00
+            set udg_KnockupTakeoffEvent = 0.00
+            set udg_KnockupEventTarget = null
 
             set this.sfx = AddSpecialEffectTarget(ATTACHMENT_EFFECT, this.target, ATTACHMENT_POINT)
-        
+            
             if LAUNCH_EFFECT != "" then
                 call DestroyEffect(AddSpecialEffect(LAUNCH_EFFECT, x, y))
             endif

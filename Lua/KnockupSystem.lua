@@ -1,5 +1,9 @@
+---@diagnostic disable: undefined-global
 if Debug then Debug.beginFile 'KnockupSystem' end --[[
 *************************************************************************************
+*   -----------
+*   version 1.1
+*   -----------
 *
 *   ------------
 *   Description:
@@ -48,10 +52,25 @@ if Debug then Debug.beginFile 'KnockupSystem' end --[[
 *   --------------
 *   Knockup System has no requirement whatsoever.
 *
+*   ----------
+*   Optionals:
+*   ----------
+*   Wrda's PauseUnits (Link: https://www.hiveworkshop.com/threads/pauseunits.340457/)
+*       This snippet helps preventing the target from being unpaused early.
+*       Very useful if you use BlzPauseUnitEx for many things in your map
+*       and not just for this system.
+*
+*       I highly recommend to use KnockupSystem along PauseUnits -- as it is the equivalent
+*       of PauseUnitEx (vJASS) by MyPad -- for the best outcomes.
+*
+*   Credits to Wrda
+*
 *   -------------------
 *   Import instruction:
 *   -------------------
-*   Simply copy and paste this code to your map. Easy Peasy Lemon Squeezy.
+*   Simply copy and paste the Knockup System folder into your map. Easy Peasy Lemon Squeezy.
+*   If you want to use the optional library, then simply import it as well.
+*   But if you don't, you can simply delete it.
 *
 **************************************************************************************]]
 do
@@ -89,10 +108,14 @@ do
     --======================
     -- End of Config
     --======================
+    Require.optional 'PauseUnits'
+
+    --Fetch optional library: PauseUnit by Wrda
+    local PauseUnits = _G.PauseUnits
 
     local TIMER = CreateTimer()
 
-    ---@class KnockupInstance
+    ---@class KnockupInstance 
     ---@field target unit
     ---@field duration number
     ---@field height number
@@ -169,7 +192,17 @@ do
         UnitAddAbility(target, FourCC('Amrf'))
         UnitRemoveAbility(target, FourCC('Amrf'))
 
-        BlzPauseUnitEx(target, true)
+        if PauseUnits ~= nil then
+            PauseUnits.pauseUnit(target, true)
+        else
+            BlzPauseUnitEx(target, true)
+        end
+
+        ---Allows user to catch the event
+        _G.udg_KnockupEventTarget = target     --Reminder to self: _G. to reference / set gui globals
+        globals.udg_KnockupTakeoffEvent = 1.00 --Reminder to self: globals to make the real event works
+        globals.udg_KnockupTakeoffEvent = 0.00
+        _G.udg_KnockupEventTarget = target
 
         new.sfx = AddSpecialEffectTarget(ATTACHMENT_EFFECT, target, ATTACHMENT_POINT)
         if LAUNCH_EFFECT ~= "" then
@@ -206,7 +239,18 @@ do
                     SetUnitFlyHeight(this.target, this.baseHeight, 0)
                     this.isAirborne = false
 
-                    BlzPauseUnitEx(this.target, false)
+                    if PauseUnits ~= nil then
+                        PauseUnits.pauseUnit(this.target, false)
+                    else
+                        BlzPauseUnitEx(this.target, false)
+                    end
+                    
+
+                    ---Allows user to catch the event
+                    _G.udg_KnockupEventTarget = this.target
+                    globals.udg_KnockupLandingEvent = 1.00
+                    globals.udg_KnockupLandingEvent = 0.00
+                    _G.udg_KnockupEventTarget = nil
 
                     DestroyEffect(this.sfx)
                     this.sfx = nil
@@ -255,7 +299,19 @@ do
             SetUnitFlyHeight(target, instance.baseHeight, 0)
             instance.isAirborne = false
 
-            BlzPauseUnitEx(target, false)
+            if PauseUnits ~= nil then
+                PauseUnits.pauseUnit(target, false)
+            else
+                BlzPauseUnitEx(target, false)
+            end
+
+            if UnitAlive(target) then
+                ---Allows user to catch the event
+                _G.udg_KnockupEventTarget = target
+                globals.udg_KnockupCancelledEvent = 1.00
+                globals.udg_KnockupCancelledEvent = 0.00
+                _G.udg_KnockupEventTarget = nil
+            end
 
             DestroyEffect(instance.sfx)
             instance.sfx = nil

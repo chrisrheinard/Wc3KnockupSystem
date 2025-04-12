@@ -7,6 +7,9 @@ Can be downloaded here from git or from this thread:
 https://www.hiveworkshop.com/threads/gui-friendly-knockup-system-v1-0.359451/
 
 Contains Lua and vJASS version.
+You can read the code here:
++ [Lua](https://github.com/chrisrheinard/Wc3KnockupSystem/blob/main/Lua/KnockupSystem.lua)
++ [vJass](https://github.com/chrisrheinard/Wc3KnockupSystem/blob/main/vJASS/KnockupSystem.j)
 
 <details>
 <summary>Changelogs</summary>

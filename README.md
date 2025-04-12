@@ -3,8 +3,7 @@ Made by Rheinard, also known as Rheiko / Vexoras
 
 This is Knockup System for Warcraft 3 version 1.31 and above
 
-Can be downloaded here from git or from this thread:
-https://www.hiveworkshop.com/threads/gui-friendly-knockup-system-v1-0.359451/
+Can be downloaded here from git or from this thread right [here](https://www.hiveworkshop.com/threads/gui-friendly-knockup-system-v1-0.359451/)
 
 Contains Lua and vJASS version.
 You can read the code here:

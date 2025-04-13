@@ -108,12 +108,8 @@ do
     --======================
     -- End of Config
     --======================
-    Require.optional 'PauseUnits'
 
-    --Fetch optional library: PauseUnit by Wrda
-    local PauseUnits = _G.PauseUnits
-
-    local TIMER = CreateTimer()
+    local TIMER ---@type timer
 
     ---@class KnockupInstance 
     ---@field target unit
@@ -216,6 +212,7 @@ do
         KnockupInstance._instances[target] = new
 
         if #KnockupInstance._list == 1 then
+            TIMER = TIMER or CreateTimer()
             TimerStart(TIMER, TIMEOUT, true, KnockupInstance.loop)
         end
 

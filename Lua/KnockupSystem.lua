@@ -1,9 +1,9 @@
 ---@diagnostic disable: undefined-global
 if Debug then Debug.beginFile 'KnockupSystem' end --[[
 *************************************************************************************
-*   -----------
-*   version 1.1
-*   -----------
+*   ------------
+*   version 1.1b
+*   ------------
 *
 *   ------------
 *   Description:
